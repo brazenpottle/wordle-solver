@@ -1,5 +1,3 @@
 # wordle-solver
- 
-List of allowable guesses: `allowed_words.txt`
 
-List of possible answers: `possible_words.txt`
+Inspired by 3blue1brown: https://youtu.be/v68zYyaEmEA
