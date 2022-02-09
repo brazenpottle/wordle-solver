@@ -157,6 +157,16 @@ def entropy(word, word_list):
             expected_value += p*np.log2(1/p)
     return [word,expected_value]
 
+def pick_word(word, word_list_split, correctness_array, fn):
+    word_list = possible_words(correctness_array, word, word_list_split)
+    word_list_split = split_word_list(word_list)
+    new_list = []
+    for wd in word_list:
+        new_list.append(fn(wd,word_list))
+    df = pd.DataFrame(new_list).sort_values(1, ascending = False)
+    best_word = df.iloc[0,0]
+    return (best_word, word_list_split)
+
 if __name__ == "__main__":
     '''
     def entropy_2(p):
@@ -186,3 +196,4 @@ if __name__ == "__main__":
         for wd in word_list:
             new_list.append(entropy(wd,word_list))
         print(pd.DataFrame(new_list).sort_values(1, ascending=True))
+   # print(pick_word('frogs',allowable_guesses_split, [0,0,2,2,0]))
