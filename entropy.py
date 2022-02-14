@@ -4,15 +4,15 @@ import pandas as pd
 import time 
 import itertools 
 from multiprocessing import Pool
-
+from numba import jit
 allowable_guesses_path = os.path.join('data', 'allowable_guesses.txt')
-allowable_guesses = list(pd.read_csv(allowable_guesses_path, header=None)[0])
+allowable_guesses = np.array(pd.read_csv(allowable_guesses_path, header=None)[0])
 
 def split_word_list(the_list):
     split_list = []
     for i in range(len(the_list)):
         split_list.append(list(the_list[i]))
-    return split_list
+    return np.array(split_list)
 
 allowable_guesses_split = split_word_list(allowable_guesses)
 '''
@@ -40,6 +40,7 @@ def generate_permutations(word): # for
         permutations.append(index_permutation)
     return permutations
 '''
+
 def generate_permutations(word): 
     final_permutations = []
     permutations = []
@@ -92,108 +93,105 @@ def generate_permutations(word):
         final_permutations.extend(list(itertools.product(*permutation)))
     return final_permutations
 
-def possible_words_number_s(array, word,word_list_split):
-    total_no = 0
-    word_split = list(word)
-    for choice in word_list_split:
-        for index, correct_letter in enumerate(array):
-            if correct_letter == 2:
-                if choice[index] == word_split[index]:
-                    pass
-                else:
-                    break
-            elif correct_letter ==1:
-                if choice[index] == word_split[index]:
-                    break 
-                elif choice[index] in word_split:
-                    pass
-                else:
-                    break
-            else:
-                if choice[index] not in word_split:
-                    pass
-                else:
-                    break
-            if index == 4:
-                total_no += 1
 
-    return total_no
+def possible_words_2(array, word, word_list_split): #returns possible words split; much faster
+    for index, correct_letter in enumerate(array):
+        if correct_letter == 2:
+            word_list_split = word_list_split[word_list_split[:, index] == word[index]]
+        elif correct_letter ==1:
+            word_list_split = word_list_split[word_list_split[:, index] != word[index]]
+            word_list_split = word_list_split[np.any(word_list_split == word[index], axis =1)]
+        else:
+            word_list_split = word_list_split[np.sum(word_list_split == word[index],axis = 1) == 0]
+    return word_list_split
 
-def possible_words(array, word, word_list_split):
-    possible_word_list = []
-    word_split = list(word)
-    for choice in word_list_split:
-        for index, correct_letter in enumerate(array):
-            if correct_letter == 2:
-                if choice[index] == word_split[index]:
-                    pass
-                else:
-                    break
-            elif correct_letter ==1:
-                if choice[index] == word_split[index]:
-                    break 
-                elif word_split[index] in choice:
-                    pass
-                else:
-                    break
-            else:
-                if word_split[index] not in choice:
-                    pass
-                else:
-                    break
-            if index == 4:
-                possible_word_list.append(''.join(choice))
-    return possible_word_list
+def possible_words_length_2(array, word, word_list_split): #returns possible words split; much faster
+    for index, correct_letter in enumerate(array):
+        if correct_letter == 2:
+            word_list_split = word_list_split[word_list_split[:, index] == word[index]]
+        elif correct_letter ==1:
+            word_list_split = word_list_split[word_list_split[:, index] != word[index]]
+            word_list_split = word_list_split[np.any(word_list_split == word[index], axis =1)]
+        else:
+            word_list_split = word_list_split[np.sum(word_list_split == word[index],axis = 1) == 0]
+    return len(word_list_split)
 
-def entropy(word, word_list):
-    word_list_split = split_word_list(word_list)
+def entropy_2(word, word_list_split): #use this
     total_number = len(allowable_guesses)
     expected_value = 0
     permutations = generate_permutations(word)
     for permutation in permutations:
-        no_words = possible_words_number_s(permutation, word, word_list_split)
+        no_words = possible_words_length_2(permutation, word, word_list_split)
         p = no_words/total_number
         if p != 0:
             expected_value += p*np.log2(1/p)
-    return [word,expected_value]
+    return expected_value
 
+def entropy_2_1(p):
+    return entropy_2(p, allowable_guesses_split)
+   
 def pick_word(word, word_list_split, correctness_array, fn):
-    word_list = possible_words(correctness_array, word, word_list_split)
-    word_list_split = split_word_list(word_list)
-    new_list = []
-    for wd in word_list:
-        new_list.append(fn(wd,word_list))
-    df = pd.DataFrame(new_list).sort_values(1, ascending = False)
-    best_word = df.iloc[0,0]
-    return (best_word, word_list_split)
-
-if __name__ == "__main__":
+    word_list_split = possible_words_2(correctness_array, word, word_list_split)
+    def mapping(wd):
+        return fn(wd,word_list_split)
+    if len(word_list_split) != 0:
+        max_ind = np.argmax(np.apply_along_axis(mapping, arr = word_list_split, axis = 1))
+        return (''.join(word_list_split[max_ind]), word_list_split)
+    else:
+        return []
     '''
-    def entropy_2(p):
-        return entropy(p, allowable_guesses)
+    x = np.array(allowable_guesses_split)
+    y = np.array(allowable_guesses)
+    def entropy_2_1(p):
+        return entropy_2(p, x)
     start = time.time()
     with Pool(os.cpu_count()-1) as p:
-        data = p.map(entropy_2, allowable_guesses)
-    np.savetxt("entropyrepeated.csv", data, delimiter = ',', fmt = '% s')
+        data = p.map(entropy_2_1, y)
+    np.savetxt("entropies.csv", data, delimiter = ',', fmt = '% s')
     end = time.time()
     print(end-start)
-    '''
-
+'''
+if __name__ == "__main__":
+    x = allowable_guesses_split
     word = input('Enter the five letter word you put: ') 
     correctness_array = list(map(int,list(input('Enter the correctness array: '))))
-    word_list = possible_words(correctness_array,word, allowable_guesses_split)
-    word_list_split = split_word_list(word_list)
+    x = possible_words_2(correctness_array, word, x)
     new_list = []
-    for wd in word_list:
-        new_list.append(entropy(wd,word_list))
-    print(pd.DataFrame(new_list).sort_values(1, ascending=True))
+    for wd in x:
+        new_list.append((wd,entropy_2(wd,x)))
+    df = pd.DataFrame(new_list).sort_values(1, ascending = True)
+    print(df)
     while 1:
-        word = input('Enter a five letter word you put: ')
+        word = input('Enter the five letter word you put: ') 
         correctness_array = list(map(int,list(input('Enter the correctness array: '))))
-        word_list = possible_words(correctness_array, word, word_list_split)
-        word_list_split = split_word_list(word_list)
+        x = possible_words_2(correctness_array, word, x)
         new_list = []
-        for wd in word_list:
-            new_list.append(entropy(wd,word_list))
-        print(pd.DataFrame(new_list).sort_values(1, ascending=True))
-   # print(pick_word('frogs',allowable_guesses_split, [0,0,2,2,0]))
+        for wd in x:
+            new_list.append((wd,entropy_2(wd,x)))
+        df = pd.DataFrame(new_list).sort_values(1, ascending = True)
+        print(df)
+
+'''
+x = np.array(allowable_guesses_split)
+start = time.time()
+print(entropy_2('slate',x))
+end = time.time()
+print(end-start)
+start = time.time()
+print(entropy('tares',allowable_guesses))
+end = time.time()
+print(end-start)
+'''
+'''
+    def pick_word_mp(perm):
+        return pick_word('tares',allowable_guesses_split, perm, entropy_2)
+    def precomputer(word,word_list_split,fn):
+        permutations = generate_permutations(word)
+        with Pool(os.cpu_count()) as p:
+            data = p.map(pick_word_mp, permutations)
+        return data
+    start = time.time()
+    print(precomputer('tares',allowable_guesses_split, entropy_2))
+    end = time.time()
+    print(end-start)
+'''

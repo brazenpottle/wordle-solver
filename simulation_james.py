@@ -6,7 +6,7 @@ import json
 from multiprocessing import Pool
 import numpy as np
 possible_answers_path = os.path.join('data', 'possible_answers.txt')
-possible_answers = list(pd.read_csv(possible_answers_path, header=None)[0])
+possible_answers = np.array(pd.read_csv(possible_answers_path, header=None)[0])
 possible_answers_split = entropy.split_word_list(possible_answers)
 def determine_correctness_array(target_word,curr_word):
     correctness_array = [None]*len(target_word)
@@ -20,10 +20,12 @@ def determine_correctness_array(target_word,curr_word):
     return correctness_array
 
 def simulate(target_word, best_word, word_list_split, fn):
+    target_word = np.array(list(target_word))
     no_tries = 1
     while best_word != target_word:
         correctness_array = determine_correctness_array(target_word, best_word)
         best_word, word_list_split = entropy.pick_word(best_word, word_list_split, correctness_array, fn)
+        best_word = ''.join(best_word)
         no_tries += 1
     return (no_tries, best_word)
 
@@ -44,22 +46,31 @@ def simulation(start_word, word_list, allowable_word_list, fn):
     json.dump(total_counts, open('simulation_counts.json', 'w'))
     json.dump(word_no_tries, open('simulation_word_counts.json','w'))
     
-def simulation_multiprocessing(target_word):
-    no_tries = 1
-    best_word = 'tares'
-    word_list_split = entropy.allowable_guesses_split
-    fn = entropy.entropy 
-    while best_word != target_word:
-        correctness_array = determine_correctness_array(target_word, best_word)
-        best_word, word_list_split = entropy.pick_word(best_word, word_list_split, correctness_array, fn)
-        no_tries += 1
-    return (no_tries, best_word)
+def precompute(word,word_list_split,fn):
+    permutations = entropy.generate_permutations(word)
+    precompute_dictionary = {}
+    for permutation in permutations:
+        precompute_dictionary[permutation] = entropy.pick_word(word,word_list_split, permutation,fn)
+    return precompute_dictionary
+
     
 if __name__ == '__main__':
+    precomputation = precompute('tares', entropy.allowable_guesses_split,entropy.entropy_2)
+    def simulation_multiprocessing(target_word):
+        no_tries = 1
+        best_word = 'tares'
+        correctness_array = determine_correctness_array(target_word, best_word)
+        best_word, word_list_split = precomputation[tuple(correctness_array)]
+        fn = entropy.entropy_2
+        while best_word != target_word:
+            correctness_array = determine_correctness_array(target_word, best_word)
+            best_word, word_list_split = entropy.pick_word(best_word, word_list_split, correctness_array, fn)
+            no_tries += 1
+        return (no_tries, best_word)
     start = time.time()
     with Pool(os.cpu_count()-1) as p:
         data = p.map(simulation_multiprocessing, possible_answers)
-    np.savetxt("simulation_entropy_1.csv", data, delimiter = ',', fmt = '% s')
+    np.savetxt("simulation_entropy_2.csv", data, delimiter = ',', fmt = '% s')
     end = time.time()
     print(end-start)
     #print(simulate('frogs', 'tares', entropy.allowable_guesses_split ,entropy.entropy))
