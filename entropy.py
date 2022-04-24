@@ -4,10 +4,11 @@ import pandas as pd
 import time 
 import itertools 
 from multiprocessing import Pool
+from preprocessing import allowable_guesses, possible_answers
 # from numba import jit
 
 # read in data
-allowable_guesses = np.array(pd.read_csv("data/allowable_guesses.txt", header=None)[0])
+# allowable_guesses = np.array(pd.read_csv("data/allowable_guesses.txt", header=None)[0])
 
 def split_word_list(the_list):
     split_list = []
@@ -45,9 +46,12 @@ def generate_permutations(word): # for
 def generate_permutations(word): 
     final_permutations = []
     permutations = []
+
     word_split = list(word)
     counter = -1
+    
     length = len(word_split)
+    
     word_indexing = []
 
     for idx, letter in enumerate(word_split):

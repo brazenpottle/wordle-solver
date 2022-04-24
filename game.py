@@ -1,5 +1,4 @@
 #####-----A Wordle Clone-----#####
-from operator import mod
 import numpy as np
 from preprocessing import allowable_guesses, possible_answers
 
