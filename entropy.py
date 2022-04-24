@@ -4,9 +4,10 @@ import pandas as pd
 import time 
 import itertools 
 from multiprocessing import Pool
-from numba import jit
-allowable_guesses_path = os.path.join('data', 'allowable_guesses.txt')
-allowable_guesses = np.array(pd.read_csv(allowable_guesses_path, header=None)[0])
+# from numba import jit
+
+# read in data
+allowable_guesses = np.array(pd.read_csv("data/allowable_guesses.txt", header=None)[0])
 
 def split_word_list(the_list):
     split_list = []
