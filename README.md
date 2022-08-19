@@ -4,7 +4,7 @@
 
 Inspired by 3blue1brown: https://youtu.be/v68zYyaEmEA
 
-Contributors: Leo Li & James Li
+<!-- Contributors: Leo Li & James Li -->
 
 # How Wordle Works
 For the official explanation of the game, please visit https://www.nytimes.com/games/wordle/index.html. 
